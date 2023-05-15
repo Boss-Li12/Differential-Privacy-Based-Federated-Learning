@@ -66,6 +66,7 @@ class LocalUpdateDP(object):
                 self.add_noise(net)
             loss_client = loss.item()
         self.lr = scheduler.get_last_lr()[0]
+        # net.state_dict()存储了网络结构的名字和对应的参数
         return net.state_dict(), loss_client
 
     def clip_gradients(self, net):

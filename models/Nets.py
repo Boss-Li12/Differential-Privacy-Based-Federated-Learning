@@ -5,18 +5,33 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from opacus.layers import DPLSTM
+from opacus.layers import DPLSTM # 权且当作一个带有dp的LSTM模型
+
+
+# 通过继承nn.Module来定义自己的网络
 
 class MLP(nn.Module):
     def __init__(self, dim_in, dim_hidden, dim_out):
         super(MLP, self).__init__()
+        # 神经网络的线性层，进行一个线性变换，维度从dim_in到dim_hidden
+        # Y = X * W + b, 初始参数随机
+        # 输入 -》 隐藏
         self.layer_input = nn.Linear(dim_in, dim_hidden)
+        # 激活函数：f(x) = max(0, x)
+        # 1.增加了神经网络各层之间的非线性关系
+        # 2.加速模型训练,导数恒为1，不会出现梯度消失
+        # 3.提高模型稀疏性，负半轴全0，使得一些神经元不活跃
+        # 4.减少模型参数，可以把参数矩阵的负值全变0
         self.relu = nn.ReLU()
+        # 在训练过程的前向传播中，让每个神经元以一定概率p处于不激活的状态。以达到减少过拟合的效果。
         self.dropout = nn.Dropout()
+        # 隐藏 -》 输出
         self.layer_hidden = nn.Linear(dim_hidden, dim_out)
+        # 归一化指数函数：Softmax 的输出表征了不同类别之间的相对概率
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
+        # 相当于reshape成x.shape[1]*x.shape[-2]*x.shape[-1]列的，不知道多少行的二维tensor
         x = x.view(-1, x.shape[1]*x.shape[-2]*x.shape[-1])
         x = self.layer_input(x)
         x = self.dropout(x)
